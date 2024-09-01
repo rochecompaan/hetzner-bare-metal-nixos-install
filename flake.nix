@@ -15,6 +15,26 @@
     in
     {
       packages.x86_64-linux = {
+        devShells.x86_64-linux.default = pkgs.mkShell {
+          shellHook = ''
+            echo ""
+            echo "Welcome to NixOS deployment shell"
+            echo "================================="
+            echo ""
+            echo "Getting Started"
+            echo "---------------"
+            echo ""
+            echo " 1. Set up sops-nix and add your Hetzner Robot username and password to it."
+            echo ""
+          '';
+          nativeBuildInputs = with pkgs; [
+            curl
+            git
+            jq
+            sops
+          ];
+        };
+
         # Package for activating rescue mode
         activate-rescue-mode = pkgs.writeShellScriptBin "activate-rescue-mode" ''
           #!/usr/bin/env bash
