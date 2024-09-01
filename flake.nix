@@ -54,21 +54,12 @@
           done
         '';
 
-        # Placeholder for additional scripts
-        another-script = pkgs.writeShellScriptBin "another-script" ''
-          #!/usr/bin/env bash
-          echo "This is another script. Add your logic here."
-        '';
       };
 
       apps = {
         activate-rescue-mode = {
           type = "app";
           program = "${self.packages.x86_64-linux.activate-rescue-mode}/bin/activate-rescue-mode";
-        };
-        another-script = {
-          type = "app";
-          program = "${self.packages.x86_64-linux.another-script}/bin/another-script";
         };
       };
     };
