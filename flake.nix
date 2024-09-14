@@ -20,22 +20,6 @@
           allowUnfree = true;
         };
       };
-
-      mkNixosConfiguration =
-        { system ? "x86_64-linux"
-        , hostname
-        , username
-        , args ? { }
-        , modules
-        ,
-        }: pkgs.lib.nixosSystem {
-          inherit system hostname username;
-          modules =
-            [
-              configurationDefaults
-            ]
-            ++ modules;
-        };
     in
     {
       formatter.x86_64-linux = pkgs.alejandra;
