@@ -12,21 +12,13 @@
     hetzner-deploy-scripts.url = "github:rochecompaan/hetzner-deploy-scripts";
   };
 
-  outputs = { self, nixpkgs, home-manager, disko, deploy-rs, nixos-anywhere, sops-nix, hetzner-deploy-scripts }:
+  outputs = { self, nixpkgs, disko, deploy-rs, nixos-anywhere, sops-nix, hetzner-deploy-scripts }:
     let
       pkgs = import nixpkgs {
         system = "x86_64-linux";
         config = {
           allowUnfree = true;
         };
-      };
-
-      configurationDefaults = args: {
-        nixpkgs = pkgs;
-        home-manager.useGlobalPkgs = true;
-        home-manager.useUserPackages = true;
-        home-manager.backupFileExtension = "hm-backup";
-        home-manager.extraSpecialArgs = args;
       };
 
       mkNixosConfiguration =
@@ -41,7 +33,6 @@
           modules =
             [
               configurationDefaults
-              home-manager.nixosModules.home-manager
             ]
             ++ modules;
         };
