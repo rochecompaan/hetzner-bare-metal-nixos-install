@@ -2,60 +2,80 @@
   description = "Nix flake to activate rescue mode on Hetzner servers and deploy NixOS configurations";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
-    sops-nix.url = "github:Mic92/sops-nix";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
+    disko.url = "github:nix-community/disko";
+    disko.inputs.nixpkgs.follows = "nixpkgs";
+    deploy-rs.url = "github:serokell/deploy-rs";
+    deploy-rs.inputs.nixpkgs.follows = "nixpkgs";
     nixos-anywhere.url = "github:numtide/nixos-anywhere";
+    sops-nix.url = "github:Mic92/sops-nix";
+    hetzner-deploy-scripts.url = "github:rochecompaan/hetzner-deploy-scripts";
   };
 
-  outputs = { self, nixpkgs, sops-nix, nixos-anywhere, ... }:
+  outputs = { self, nixpkgs, home-manager, disko, deploy-rs, nixos-anywhere, sops-nix, hetzner-deploy-scripts }:
     let
       pkgs = import nixpkgs {
         system = "x86_64-linux";
+        config = {
+          allowUnfree = true;
+        };
       };
+
+      configurationDefaults = args: {
+        nixpkgs = pkgs;
+        home-manager.useGlobalPkgs = true;
+        home-manager.useUserPackages = true;
+        home-manager.backupFileExtension = "hm-backup";
+        home-manager.extraSpecialArgs = args;
+      };
+
+      mkNixosConfiguration =
+        { system ? "x86_64-linux"
+        , hostname
+        , username
+        , args ? { }
+        , modules
+        ,
+        }: pkgs.lib.nixosSystem {
+          inherit system hostname username;
+          modules =
+            [
+              configurationDefaults
+              home-manager.nixosModules.home-manager
+            ]
+            ++ modules;
+        };
     in
     {
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        shellHook = ''
-          echo ""
-          echo "Welcome to NixOS deployment shell"
-          echo "================================="
-          echo ""
-        '';
-        nativeBuildInputs = with pkgs; [
-          curl
-          git
-          yq
-          sops
-        ];
-      };
+      formatter.x86_64-linux = pkgs.alejandra;
 
-        # Package for activating rescue mode
       packages.x86_64-linux = {
-        activate-rescue-mode = pkgs.writeShellScriptBin "activate-rescue-mode" ''
-          #!/usr/bin/env bash
-
-          echo "Decrypting secrets..."
-          HETZNER_INSTALLIMAGE_WEBSERVICE_USERNAME=$(sops -d ./secrets/hetzner_username.sops)
-          HETZNER_INSTALLIMAGE_WEBSERVICE_PASSWORD=$(sops -d ./secrets/hetzner_password.sops)
-
-          echo "Activating rescue mode on all servers and deploying NixOS configurations..."
-
-          for SERVER_IP in ${toString fingerprints}; do
-            echo "Activating rescue mode for $SERVER_IP..."
-            ./scripts/activate-rescue-mode.sh $HETZNER_INSTALLIMAGE_WEBSERVICE_USERNAME $HETZNER_INSTALLIMAGE_WEBSERVICE_PASSWORD $SERVER_IP
-
-            echo "Deploying NixOS configuration to $SERVER_IP..."
-            nixos-anywhere --flake .#mySystem --target-host root@$SERVER_IP --use-remote-sudo --ask-pass --build-on-remote
-          done
-        '';
-
+        activate-rescue-mode = hetzner-deploy-scripts.packages.x86_64-linux.activate-rescue-mode;
+        generate-hardware-config = hetzner-deploy-scripts.packages.x86_64-linux.generate-hardware-config;
       };
 
       apps = {
         activate-rescue-mode = {
           type = "app";
-          program = "${self.packages.x86_64-linux.activate-rescue-mode}/bin/activate-rescue-mode";
+          program = "${self.packages.x86_64-linux.activate-and-deploy}/bin/activate-rescue-mode";
         };
+
+        generate-hardware-config = {
+          type = "app";
+          program = "${self.packages.x86_64-linux.generate-hardware-config}/bin/generate-hardware-config";
+        };
+      };
+
+      checks = builtins.mapAttrs (system: deployLib: deployLib.deployChecks self.deploy) deploy-rs.lib;
+
+      # Development shell with curl, git, yq, and sops
+      devShells.x86_64-linux.default = pkgs.mkShell {
+        packages = [
+          pkgs.curl
+          pkgs.git
+          pkgs.yq
+          pkgs.sops
+        ];
       };
     };
 }
