@@ -41,4 +41,18 @@ Add your username and password:
 	"hezner_robot_password": "your-password"
 }
 ```
+
+## Activate rescue mode
+
+```
+nix run .#activate-rescue-mode -- <server-ip>
+```
+
+## Generate hardware configuration
+
+```
+nix run .#generate-hardware-configuration -- <server-ip>
+```
+
 ## Define remote systems
+
